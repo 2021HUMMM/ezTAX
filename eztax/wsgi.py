@@ -1,5 +1,5 @@
 """
-WSGI config for taxgate_django project.
+WSGI config for ezTAX project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'taxgate_django.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'eztax.settings')
 
 application = get_wsgi_application()

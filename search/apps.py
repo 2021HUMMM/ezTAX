@@ -7,4 +7,4 @@ class SearchConfig(AppConfig):
     def ready(self):
         from django.conf import settings
         from . import engine
-        engine.muat_database(settings.CHROMA_DB_PATH)
+        engine.muat_database()

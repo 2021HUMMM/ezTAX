@@ -1,7 +1,7 @@
 chroma_db_pajak_openai/
 venv/
 
-
 .env
 note.txt
 db.sqlite3
+migrate_to_qdrant.py

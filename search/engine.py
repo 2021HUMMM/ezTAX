@@ -1,8 +1,10 @@
 import os
 import re
 from openai import OpenAI
-from langchain_community.vectorstores import Chroma
+from langchain_qdrant import QdrantVectorStore
 from langchain_openai import OpenAIEmbeddings
+from qdrant_client import QdrantClient
+from qdrant_client.http import models as rest
 
 openai_client = OpenAI(api_key=os.getenv("API_KEY"))
 
@@ -109,17 +111,23 @@ def normalisasi_nomor(s):
     return re.sub(r'\s*-\s*', '-', s)
 
 
-def muat_database(chroma_path):
+def muat_database():
     global db_vektor
-    print("🤖 Menghubungkan ke ChromaDB dengan OpenAI embeddings...")
+    print("🤖 Menghubungkan ke Qdrant Cloud...")
     model_embedding = OpenAIEmbeddings(
         model="text-embedding-3-small",
         api_key=os.getenv("API_KEY")
     )
-    db_vektor = Chroma(
-        persist_directory=chroma_path,
-        embedding_function=model_embedding,
-        collection_name="peraturan_pajak_openai"
+    qdrant_client = QdrantClient(
+        url=os.getenv("QDRANT_URL"),
+        api_key=os.getenv("QDRANT_KEY"),
+    )
+    db_vektor = QdrantVectorStore(
+        client=qdrant_client,
+        collection_name="peraturan_pajak_openai",
+        embedding=model_embedding,
+        content_payload_key="page_content",
+        metadata_payload_key="metadata",
     )
     print("✅ Database siap!")
 
@@ -177,7 +185,12 @@ def cari_dokumen(query, jumlah_hasil, kategori, jenis_dokumen, pakai_ai):
 
     where_filter = None
     if jenis_dokumen and jenis_dokumen != "- Apa saja -":
-        where_filter = {"jenis_dokumen": jenis_dokumen}
+        where_filter = rest.Filter(must=[
+            rest.FieldCondition(
+                key="metadata.jenis_dokumen",
+                match=rest.MatchValue(value=jenis_dokumen)
+            )
+        ])
 
     filter_kategori = None
     if kategori and kategori != "- Apa saja -":
@@ -201,9 +214,18 @@ def cari_dokumen(query, jumlah_hasil, kategori, jenis_dokumen, pakai_ai):
                 nomor_spasi = re.sub(r'-', ' - ', nomor_target, count=1)
                 for variant in [nomor_target, nomor_spasi]:
                     try:
-                        f = {"nomor_dokumen": variant}
+                        conditions = [
+                            rest.FieldCondition(
+                                key="metadata.nomor_dokumen",
+                                match=rest.MatchValue(value=variant)
+                            )
+                        ]
                         if where_filter:
-                            f = {"$and": [where_filter, {"nomor_dokumen": variant}]}
+                            conditions.append(rest.FieldCondition(
+                                key="metadata.jenis_dokumen",
+                                match=rest.MatchValue(value=jenis_dokumen)
+                            ))
+                        f = rest.Filter(must=conditions)
                         hasil_nomor = db_vektor.similarity_search_with_relevance_scores(query_expanded, k=3, filter=f)
                         if hasil_nomor:
                             kandidat = hasil_nomor + kandidat

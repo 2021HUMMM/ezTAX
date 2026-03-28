@@ -4,4 +4,6 @@ openai
 langchain-community
 langchain-openai
 langchain-text-splitters
+langchain-qdrant
+qdrant-client
 chromadb

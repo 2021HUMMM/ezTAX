@@ -1,0 +1,7 @@
+django>=4.2
+python-dotenv
+openai
+langchain-community
+langchain-openai
+langchain-text-splitters
+chromadb

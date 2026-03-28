@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaxGate — Mesin Pencari Peraturan Pajak</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+
+        /* Header */
+        .header { text-align: center; padding: 32px 0 24px; }
+        .header h1 { font-size: 28px; font-weight: 700; color: #1e293b; }
+        .header p { color: #64748b; margin-top: 8px; font-size: 15px; }
+
+        /* Form */
+        .search-row { display: flex; gap: 12px; margin-bottom: 12px; }
+        .search-row .query-wrap { flex: 5; }
+        .search-row .jumlah-wrap { flex: 1; min-width: 90px; }
+
+        .filter-row { display: flex; gap: 12px; margin-bottom: 12px; }
+        .filter-row > * { flex: 1; }
+
+        label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%; padding: 10px 14px; border: 1px solid #d1d5db;
+            border-radius: 8px; font-size: 14px; color: #1e293b; background: white;
+            outline: none; transition: border-color 0.15s;
+        }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+        }
+
+        .ai-toggle { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px;
+                     background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px; }
+        .ai-toggle input[type="checkbox"] { margin-top: 2px; width: 16px; height: 16px; cursor: pointer; }
+        .ai-toggle-label { font-size: 14px; font-weight: 600; color: #374151; cursor: pointer; }
+        .ai-toggle-info { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+        .btn-cari { width: 100%; padding: 12px; background: #3b82f6; color: white;
+                    border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+                    cursor: pointer; transition: background 0.15s; margin-bottom: 24px; }
+        .btn-cari:hover { background: #2563eb; }
+        .btn-cari:disabled { background: #93c5fd; cursor: not-allowed; }
+
+        /* Results */
+        #hasil { min-height: 100px; }
+        .placeholder { color: #94a3b8; text-align: center; padding: 40px; }
+
+        .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px;
+                margin-bottom: 16px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .card-title-wrap { display: flex; align-items: center; gap: 10px; }
+        .rank-badge { background: #3b82f6; color: white; border-radius: 50%; width: 32px; height: 32px;
+                      display: flex; align-items: center; justify-content: center; font-weight: bold;
+                      font-size: 14px; flex-shrink: 0; }
+        .card-title { font-size: 16px; font-weight: 600; color: #1e293b; line-height: 1.4; }
+        .skor-badge { border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600;
+                      color: white; white-space: nowrap; flex-shrink: 0; }
+        .card-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .badge { border-radius: 6px; padding: 4px 10px; font-size: 13px; }
+        .badge-nomor { background: #f1f5f9; color: #475569; }
+        .badge-jenis { background: #e0e7ff; color: #3730a3; }
+        .badge-kategori { background: #f1f5f9; color: #475569; }
+        .cuplikan { color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 12px;
+                    background: #f8fafc; padding: 12px; border-radius: 8px; border-left: 3px solid #3b82f6; }
+        .link-doc { color: #3b82f6; font-size: 13px; text-decoration: none; font-weight: 500; }
+        .link-doc:hover { text-decoration: underline; }
+
+        .loading { text-align: center; padding: 40px; color: #64748b; }
+        .error-msg { text-align: center; padding: 40px; color: #ef4444; }
+
+        @media (max-width: 600px) {
+            .search-row, .filter-row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🏛️ TaxGate</h1>
+        <p>Mesin Pencari Peraturan Pajak Indonesia — Berbasis AI Semantic Search</p>
+    </div>
+
+    <div class="search-row">
+        <div class="query-wrap">
+            <label for="query">Cari Peraturan</label>
+            <input type="text" id="query" placeholder="Contoh: tarif PPN untuk barang mewah...">
+        </div>
+        <div class="jumlah-wrap">
+            <label for="jumlah">Jumlah Hasil</label>
+            <input type="number" id="jumlah" value="5" min="1" max="20">
+        </div>
+    </div>
+
+    <div class="filter-row">
+        <div>
+            <label for="kategori">Kategori Peraturan</label>
+            <select id="kategori">
+                {% for k in daftar_kategori %}
+                <option>{{ k }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="jenis">Jenis Dokumen</label>
+            <select id="jenis">
+                {% for j in daftar_jenis %}
+                <option>{{ j }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="ai-toggle">
+        <input type="checkbox" id="pakai_ai">
+        <div>
+            <label class="ai-toggle-label" for="pakai_ai">🤖 AI Query Enhancer</label>
+            <div class="ai-toggle-info">Membantu menerjemahkan query informal ke istilah formal perpajakan sebelum dicari. Matikan untuk pencarian langsung tanpa transformasi. (Akan lebih memakan waktu)</div>
+        </div>
+    </div>
+
+    <button class="btn-cari" id="btn-cari" onclick="doSearch()">🔍 Cari</button>
+
+    <div id="hasil">
+        <p class="placeholder">Hasil pencarian akan muncul di sini...</p>
+    </div>
+</div>
+
+<script>
+    document.getElementById('query').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') doSearch();
+    });
+
+    async function doSearch() {
+        const query = document.getElementById('query').value.trim();
+        if (!query) return;
+
+        const btn = document.getElementById('btn-cari');
+        btn.disabled = true;
+        btn.textContent = '⏳ Mencari...';
+        document.getElementById('hasil').innerHTML = '<p class="loading">Sedang mencari...</p>';
+
+        try {
+            const resp = await fetch('/api/search/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: query,
+                    jumlah: parseInt(document.getElementById('jumlah').value) || 5,
+                    kategori: document.getElementById('kategori').value,
+                    jenis: document.getElementById('jenis').value,
+                    pakai_ai: document.getElementById('pakai_ai').checked,
+                })
+            });
+
+            const data = await resp.json();
+
+            if (data.error && !data.results.length) {
+                document.getElementById('hasil').innerHTML = `<p class="error-msg">Error: ${data.error}</p>`;
+                return;
+            }
+            if (!data.results.length) {
+                document.getElementById('hasil').innerHTML = '<p class="placeholder">Tidak ditemukan dokumen yang relevan.</p>';
+                return;
+            }
+
+            document.getElementById('hasil').innerHTML = data.results.map((r, i) => `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-wrap">
+                            <span class="rank-badge">${i + 1}</span>
+                            <span class="card-title">${r.judul}</span>
+                        </div>
+                        <span class="skor-badge" style="background:${r.warna_skor}">Relevansi: ${r.skor}</span>
+                    </div>
+                    <div class="card-badges">
+                        <span class="badge badge-nomor">📄 ${r.nomor}</span>
+                        <span class="badge badge-jenis">📋 ${r.jenis}</span>
+                        <span class="badge badge-kategori">🏷️ ${r.kategori}</span>
+                    </div>
+                    <p class="cuplikan">${r.cuplikan}</p>
+                    <a class="link-doc" href="${r.url}" target="_blank">🔗 Buka Dokumen Lengkap →</a>
+                </div>
+            `).join('');
+
+        } catch (err) {
+            document.getElementById('hasil').innerHTML = `<p class="error-msg">Gagal menghubungi server.</p>`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🔍 Cari';
+        }
+    }
+</script>
+</body>
+</html>

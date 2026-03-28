@@ -1,0 +1,7 @@
+chroma_db_pajak_openai/
+venv/
+
+
+.env
+note.txt
+db.sqlite3

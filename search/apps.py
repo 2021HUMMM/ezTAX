@@ -5,6 +5,7 @@ class SearchConfig(AppConfig):
     name = 'search'
 
     def ready(self):
-        from django.conf import settings
-        from . import engine
-        engine.muat_database()
+        import os
+        if os.getenv("QDRANT_URL"):
+            from . import engine
+            engine.muat_database()

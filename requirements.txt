@@ -7,4 +7,3 @@ langchain-text-splitters
 langchain-qdrant
 qdrant-client
 gunicorn
-chromadb
